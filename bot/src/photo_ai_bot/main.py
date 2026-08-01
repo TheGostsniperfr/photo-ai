@@ -20,8 +20,6 @@ class BotSettings(BaseSettings):
     runner_url: str = "http://photo-ai-runner.photo-ai.svc.cluster.local:8765"
     runner_auth_token: str = "changeme"
 
-    ollama_url: str = "http://ollama-external-service.ollama.svc.cluster.local:11434"
-
 
 settings = BotSettings()
 
@@ -40,14 +38,6 @@ _http = httpx.AsyncClient(
 def _runner_available() -> bool:
     try:
         r = httpx.get(f"{settings.runner_url}/healthz", timeout=5)
-        return r.status_code == 200
-    except Exception:
-        return False
-
-
-def _ollama_available() -> bool:
-    try:
-        r = httpx.get(f"{settings.ollama_url}/api/tags", timeout=5)
         return r.status_code == 200
     except Exception:
         return False
@@ -72,9 +62,9 @@ async def scan_all(interaction: discord.Interaction):
 async def _trigger(interaction: discord.Interaction, mode: str):
     await interaction.response.defer(ephemeral=False)
 
-    if not _ollama_available():
+    if not _runner_available():
         await interaction.followup.send(
-            embed=_embed("Workstation Offline", "Ollama is not reachable — is the workstation on?", discord.Color.red())
+            embed=_embed("Runner Offline", "Photo-AI runner is not reachable — is the workstation on?", discord.Color.red())
         )
         return
 
@@ -130,7 +120,6 @@ async def stats(interaction: discord.Interaction):
 
     embed = discord.Embed(title="Photo AI — Status", color=discord.Color.blurple())
     embed.add_field(name="Runner", value="Online" if _runner_available() else "Offline", inline=True)
-    embed.add_field(name="Ollama", value="Online" if _ollama_available() else "Offline", inline=True)
     embed.add_field(name="Active jobs", value=str(len(running)), inline=True)
     embed.timestamp = datetime.utcnow()
     await interaction.followup.send(embed=embed)
