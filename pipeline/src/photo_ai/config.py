@@ -3,9 +3,9 @@ from pathlib import Path
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="PHOTO_AI_", env_file=".env")
+    model_config = SettingsConfigDict(env_prefix="PHOTO_AI_", env_file=".env", env_list_separator=",")
 
-    photos_path: Path = Path("/photos")
+    photos_paths: list[Path] = [Path("/photos")]
     database_url: str = "postgresql://photoai:changeme@localhost:5432/photoai"
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "photos"

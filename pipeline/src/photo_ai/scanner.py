@@ -45,11 +45,12 @@ class PhotoScanner:
 
     def _discover(self) -> list[Path]:
         photos = []
-        for root, _, files in os.walk(self._settings.photos_path):
-            for f in files:
-                p = Path(root) / f
-                if p.suffix.lower() in SUPPORTED_EXTENSIONS:
-                    photos.append(p)
+        for base in self._settings.photos_paths:
+            for root, _, files in os.walk(base):
+                for f in files:
+                    p = Path(root) / f
+                    if p.suffix.lower() in SUPPORTED_EXTENSIONS:
+                        photos.append(p)
         return sorted(photos)
 
     async def _process_one(self, path: Path) -> dict:

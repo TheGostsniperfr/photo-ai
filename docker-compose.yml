@@ -14,7 +14,7 @@ services:
     command: ["serve"]
     environment:
       NVIDIA_VISIBLE_DEVICES: all
-      PHOTO_AI_PHOTOS_PATH: /photos
+      PHOTO_AI_PHOTOS_PATHS: "/photos,/phone-photos,/phone-videos"
       PHOTO_AI_RUNNER_HOST: "0.0.0.0"
       PHOTO_AI_RUNNER_PORT: "8765"
       # Filled from .env file — see .env.example
@@ -25,6 +25,8 @@ services:
       PHOTO_AI_QUALITY_TIER: "${PHOTO_AI_QUALITY_TIER:-fast}"
     volumes:
       - /media/raid5_proxmox/nextcloud/photos:/photos:ro
+      - /media/raid5_proxmox/nextcloud/Tél/Caméra:/phone-photos:ro
+      - /media/raid5_proxmox/nextcloud/Tél/Caméra 2:/phone-videos:ro
       # InsightFace model cache (avoid re-download on restart)
       - photo_ai_model_cache:/root/.insightface
       - photo_ai_hf_cache:/root/.cache/huggingface
