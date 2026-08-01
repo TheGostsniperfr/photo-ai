@@ -1,0 +1,34 @@
+# Runs the photo-ai runner (webhook receiver + GPU pipeline) on the workstation.
+# Prerequisites: NVIDIA Container Toolkit installed, Docker CDI configured.
+#
+# Usage:
+#   docker compose up -d
+#   docker compose exec runner photo-ai scan-new   # manual trigger
+
+services:
+  runner:
+    image: ghcr.io/thegostsniperfr/photo-ai/pipeline:latest
+    runtime: nvidia
+    network_mode: host          # allows reaching Ollama on localhost:11434
+    restart: unless-stopped
+    command: ["serve"]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      PHOTO_AI_PHOTOS_PATH: /photos
+      PHOTO_AI_RUNNER_HOST: "0.0.0.0"
+      PHOTO_AI_RUNNER_PORT: "8765"
+      # Filled from .env file — see .env.example
+      PHOTO_AI_DATABASE_URL: "${PHOTO_AI_DATABASE_URL}"
+      PHOTO_AI_QDRANT_URL: "${PHOTO_AI_QDRANT_URL}"
+      PHOTO_AI_RUNNER_AUTH_TOKEN: "${PHOTO_AI_RUNNER_AUTH_TOKEN}"
+      PHOTO_AI_OLLAMA_URL: "http://localhost:11434"
+      PHOTO_AI_QUALITY_TIER: "${PHOTO_AI_QUALITY_TIER:-fast}"
+    volumes:
+      - /media/raid5_proxmox/nextcloud/photos:/photos:ro
+      # InsightFace model cache (avoid re-download on restart)
+      - photo_ai_model_cache:/root/.insightface
+      - photo_ai_hf_cache:/root/.cache/huggingface
+
+volumes:
+  photo_ai_model_cache:
+  photo_ai_hf_cache:
