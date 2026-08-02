@@ -11,7 +11,7 @@ dependencies = [
     # AI / ML — torch installed from CUDA source, see [[tool.poetry.source]]
     "torch>=2.5.0",
     "torchvision>=0.20.0",
-    "transformers>=4.45.0",
+    "transformers>=4.45.0,<5.0.0",
     "sentence-transformers>=3.2.0",
     "insightface>=0.7.3",
     "onnxruntime-gpu>=1.19.0",
