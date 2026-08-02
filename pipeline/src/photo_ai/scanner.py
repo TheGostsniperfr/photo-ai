@@ -2,16 +2,22 @@
 
 import asyncio
 import hashlib
+import json
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
 import httpx
+from PIL import Image
+from PIL.ExifTags import TAGS as EXIF_TAGS
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
 
+from photo_ai.album_engine import AlbumEngine, PhotoMeta
 from photo_ai.config import Settings
 from photo_ai.db import Database
+from photo_ai.immich_client import ImmichClient
 from photo_ai.vector_store import VectorStore
 from photo_ai.processors.clip import ClipProcessor
 from photo_ai.processors.florence import FlorenceProcessor
@@ -22,6 +28,18 @@ from photo_ai.processors.xmp import XmpWriter
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".tiff", ".tif", ".bmp", ".cr2", ".nef", ".arw", ".dng", ".orf", ".rw2"}
 
 console = Console()
+
+
+def _extract_taken_at(path: Path) -> datetime | None:
+    try:
+        with Image.open(path) as img:
+            exif = img.getexif()
+            for tag_id, value in exif.items():
+                if EXIF_TAGS.get(tag_id) == "DateTimeOriginal":
+                    return datetime.strptime(str(value), "%Y:%m:%d %H:%M:%S")
+    except Exception:
+        pass
+    return None
 
 
 def _sha256(path: Path) -> str:
@@ -95,10 +113,13 @@ class PhotoScanner:
             ocr_text=ocr_text,
         )
 
+        taken_at = await asyncio.to_thread(_extract_taken_at, path)
+
         # Persist to DB
         await self._db.upsert_photo(
             str(path), mtime, sha256,
             caption=caption, tags=tags, faces=stored_faces, ocr_text=ocr_text,
+            taken_at=taken_at,
         )
 
         return {"caption": caption, "tags": tags, "faces": len(detected)}
@@ -146,6 +167,34 @@ class PhotoScanner:
                     progress_callback(total - processed, total, str(path))
 
         summary = {"total": total, "processed": done, "errors": errors}
+
+        if self._settings.immich_url and self._settings.immich_api_key:
+            immich = ImmichClient(
+                self._settings.immich_url,
+                self._settings.immich_api_key,
+                self._settings.immich_path_prefix,
+            )
+            try:
+                rows = await self._db.list_all_photos()
+                metas = [
+                    PhotoMeta(
+                        path=r["path"],
+                        caption=r["caption"] or "",
+                        tags=r["tags"] if isinstance(r["tags"], list) else json.loads(r["tags"] or "[]"),
+                        taken_at=r["taken_at"],
+                        asset_id=r["immich_asset_id"],
+                    )
+                    for r in rows
+                ]
+                engine = AlbumEngine(immich)
+                album_result = await engine.run(metas)
+                # Cache resolved asset IDs to avoid re-fetching next run
+                for meta in metas:
+                    if meta.asset_id:
+                        await self._db.update_immich_asset_id(meta.path, meta.asset_id)
+                summary["albums"] = album_result
+            finally:
+                await immich.close()
 
         if report_url:
             try:

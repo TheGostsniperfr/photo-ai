@@ -30,3 +30,9 @@ class Settings(BaseSettings):
 
     # Skip photos already processed (False = force reprocess all)
     incremental: bool = True
+
+    # Immich integration — leave empty to disable
+    immich_url: str = ""
+    immich_api_key: str = ""
+    # Maps pipeline container paths to Immich paths: /photos/... → /mnt/photos/...
+    immich_path_prefix: str = "/mnt"
