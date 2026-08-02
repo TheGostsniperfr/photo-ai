@@ -8,7 +8,8 @@
 services:
   runner:
     image: ghcr.io/thegostsniperfr/photo-ai/pipeline:latest
-    runtime: nvidia
+    devices:
+      - "nvidia.com/gpu=all"    # CDI device — requires Docker 25+ with CDI enabled
     network_mode: host          # allows reaching Ollama on localhost:11434
     restart: unless-stopped
     command: ["serve"]
